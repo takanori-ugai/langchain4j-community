@@ -14,16 +14,11 @@ import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.filter.Filter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static dev.langchain4j.internal.Utils.randomUUID;
 import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
@@ -32,8 +27,6 @@ import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
  * Represents a <a href="https://surrealdb.com/">SurrealDB</a> index as an embedding store.
  */
 public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment> {
-
-    private static final Logger log = LoggerFactory.getLogger(SurrealDbEmbeddingStore.class);
 
     private final Surreal driver;
     private final String namespace;
@@ -75,6 +68,32 @@ public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment> {
     @Override
     public List<String> addAll(List<Embedding> embeddings) {
         return addAll(embeddings, null);
+    }
+
+    @Override
+    public void addAll(List<String> ids, List<Embedding> embeddings, List<TextSegment> embedded) {
+        if (embeddings == null || embeddings.isEmpty()) {
+            return;
+        }
+        if (ids != null && ids.size() != embeddings.size()) {
+            throw new IllegalArgumentException("ids size must match embeddings size");
+        }
+
+        List<SurrealEmbeddingRecord> records = new ArrayList<>();
+
+        for (int i = 0; i < embeddings.size(); i++) {
+            String id = ids != null ? ids.get(i) : randomUUID();
+            TextSegment segment = embedded != null && i < embedded.size() ? embedded.get(i) : null;
+            records.add(new SurrealEmbeddingRecord(collection, id, embeddings.get(i).vectorAsList(), segment));
+        }
+
+        try {
+            for (SurrealEmbeddingRecord record : records) {
+                driver.create(new RecordId(collection, record.id), record);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to add embeddings", e);
+        }
     }
 
     @Override
@@ -127,12 +146,21 @@ public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment> {
         SurrealDbFilterMapper filterMapper = new SurrealDbFilterMapper(params);
         String whereClause = filterMapper.map(filter);
         String query = "DELETE " + collection + " WHERE " + whereClause;
-        driver.queryBind(query, params);
+        executeQuery(query, params);
     }
 
     private void addInternal(String id, Embedding embedding, TextSegment textSegment) {
         SurrealEmbeddingRecord record = new SurrealEmbeddingRecord(collection, id, embedding.vectorAsList(), textSegment);
         driver.create(new RecordId(collection, id), record);
+    }
+
+    private Response executeQuery(String query, Map<String, java.lang.Object> params) {
+        return executeQuery(driver, query, params);
+    }
+
+    private static Response executeQuery(Surreal driver, String query, Map<String, java.lang.Object> params) {
+        Map<String, java.lang.Object> safeParams = params == null ? Map.of() : params;
+        return driver.queryBind(query, safeParams);
     }
 
     @Override
@@ -160,7 +188,7 @@ public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment> {
         query += " WHERE " + whereClause.toString() + " ORDER BY score DESC LIMIT $limit";
 
         try {
-            Response response = driver.queryBind(query, params);
+            Response response = executeQuery(query, params);
 
             // Check for errors? Response wrapper might hold errors.
             // Assuming take(0) returns the result of the first query.
@@ -319,19 +347,34 @@ public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment> {
             String connectString = String.format("%s://%s:%d/rpc", protocol, host, port);
 
             driver.connect(connectString);
+            driver.signin(new Root(username, password));
             driver.useNs(namespace);
             driver.useDb(database);
-            driver.signin(new Root(username, password));
+
+            // Ensure the table exists before creating an index.
+            String defineTableQuery = String.format("DEFINE TABLE %s SCHEMALESS;", collection);
+            try {
+                executeQuery(driver, defineTableQuery, null);
+            } catch (Exception e) {
+                String message = e.getMessage();
+                if (message == null || !message.contains("already exists")) {
+                    throw new RuntimeException("Failed to define table", e);
+                }
+            }
 
             // Create index if needed
+            String indexQuery = String.format(
+                    "DEFINE INDEX idx_embedding_%s ON TABLE %s FIELDS embedding HNSW DIMENSION %d DIST COSINE TYPE F32;",
+                    collection, collection, dimension
+            );
+
             try {
-                 String indexQuery = String.format(
-                     "DEFINE INDEX idx_embedding_%s ON TABLE %s FIELDS embedding HNSW DIMENSION %d DIST COSINE TYPE F32",
-                     collection, collection, dimension
-                 );
-                 driver.query(indexQuery);
+                executeQuery(driver, indexQuery, null);
             } catch (Exception e) {
-                log.warn("Failed to create index", e);
+                String message = e.getMessage();
+                if (message == null || !message.contains("already exists")) {
+                    throw new RuntimeException("Failed to create index", e);
+                }
             }
 
             return new SurrealDbEmbeddingStore(driver, namespace, database, collection, dimension);
@@ -339,14 +382,13 @@ public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment> {
     }
 
     // Helper class for serialization
-    private static class SurrealEmbeddingRecord {
-        // Transient fields to avoid serialization if needed, but here we want them
-        transient String collection;
-        transient String id;
+    public static class SurrealEmbeddingRecord {
+        public String collection;
+        public String id;
 
-        List<Float> embedding;
-        String text;
-        Map<String, java.lang.Object> metadata;
+        public List<Float> embedding;
+        public String text;
+        public Map<String, java.lang.Object> metadata = new HashMap<>();
 
         public SurrealEmbeddingRecord(String collection, String id, List<Float> embedding, TextSegment textSegment) {
             this.collection = collection;

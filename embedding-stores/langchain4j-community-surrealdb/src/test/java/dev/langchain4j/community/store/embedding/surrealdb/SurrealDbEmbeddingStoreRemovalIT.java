@@ -8,12 +8,7 @@ import dev.langchain4j.store.embedding.EmbeddingStoreWithRemovalIT;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
-@Testcontainers
 class SurrealDbEmbeddingStoreRemovalIT extends EmbeddingStoreWithRemovalIT {
 
     static final String USERNAME = "root";
@@ -22,31 +17,29 @@ class SurrealDbEmbeddingStoreRemovalIT extends EmbeddingStoreWithRemovalIT {
     static final String DATABASE = "test_db";
     static final String COLLECTION = "test_vectors";
 
-    @Container
-    static GenericContainer<?> surrealdb = new GenericContainer<>("surrealdb/surrealdb:latest")
-            .withExposedPorts(8000)
-            .withCommand("start --log trace --user " + USERNAME + " --pass " + PASSWORD)
-            .waitingFor(Wait.forLogMessage(".*Started web server on.*", 1));
-
     EmbeddingModel embeddingModel = new AllMiniLmL6V2QuantizedEmbeddingModel();
 
     SurrealDbEmbeddingStore embeddingStore;
+    private static String host;
+    private static int port;
 
     @BeforeAll
-    static void beforeAll() {
-        surrealdb.start();
+    static void beforeAllTests() {
+        SurrealDbEmbeddingStoreBaseTest.startContainer();
+        host = SurrealDbEmbeddingStoreBaseTest.HOST;
+        port = SurrealDbEmbeddingStoreBaseTest.PORT;
     }
 
     @AfterAll
-    static void afterAll() {
-        surrealdb.stop();
+    static void afterAllTests() {
+        SurrealDbEmbeddingStoreBaseTest.stopContainer();
     }
 
     @BeforeEach
     void beforeEach() {
         embeddingStore = SurrealDbEmbeddingStore.builder()
-                .host(surrealdb.getHost())
-                .port(surrealdb.getMappedPort(8000))
+                .host(host)
+                .port(port)
                 .useTls(false)
                 .namespace(NAMESPACE)
                 .database(DATABASE)

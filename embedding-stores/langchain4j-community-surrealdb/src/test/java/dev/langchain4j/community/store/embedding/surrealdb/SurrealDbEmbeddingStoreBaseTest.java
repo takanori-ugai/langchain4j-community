@@ -7,12 +7,14 @@ import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.EmbeddingStoreIT;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.time.Duration;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
-@Testcontainers
 public abstract class SurrealDbEmbeddingStoreBaseTest extends EmbeddingStoreIT {
 
     protected static final String USERNAME = "root";
@@ -20,12 +22,32 @@ public abstract class SurrealDbEmbeddingStoreBaseTest extends EmbeddingStoreIT {
     protected static final String NAMESPACE = "test_ns";
     protected static final String DATABASE = "test_db";
     protected static final String COLLECTION = "test_vectors";
+    protected static final int RPC_PORT = 8000;
+    protected static final String SURREALDB_IMAGE = System.getProperty("surrealdb.image", "surrealdb/surrealdb:latest");
 
-    @Container
-    protected static GenericContainer<?> surrealdb = new GenericContainer<>("surrealdb/surrealdb:latest")
-            .withExposedPorts(8000)
-            .withCommand("start --log trace --user " + USERNAME + " --pass " + PASSWORD)
-            .waitingFor(Wait.forLogMessage(".*Started web server on.*", 1));
+    protected static String HOST;
+    protected static int PORT;
+
+    protected static final GenericContainer<?> surrealdbContainer =
+            new GenericContainer<>(DockerImageName.parse(SURREALDB_IMAGE))
+                    .withExposedPorts(RPC_PORT)
+                    .withCommand("start", "--log", "info", "--user", USERNAME, "--pass", PASSWORD, "memory")
+                    .waitingFor(
+                            Wait.forLogMessage(".*Started web server on.*", 1)
+                                    .withStartupTimeout(Duration.ofSeconds(60)));
+
+    static {
+        try {
+            var jnaDir = Paths.get("target", "jna-tmp").toAbsolutePath();
+            var djlDir = Paths.get("target", "djl-cache").toAbsolutePath();
+            Files.createDirectories(jnaDir);
+            Files.createDirectories(djlDir);
+            System.setProperty("jna.tmpdir", jnaDir.toString());
+            System.setProperty("DJL_CACHE_DIR", djlDir.toString());
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to prepare temp directories", e);
+        }
+    }
 
     protected SurrealDbEmbeddingStore embeddingStore;
 
@@ -33,12 +55,26 @@ public abstract class SurrealDbEmbeddingStoreBaseTest extends EmbeddingStoreIT {
 
     @BeforeAll
     static void beforeAll() {
-        surrealdb.start();
+        startContainer();
     }
 
     @AfterAll
     static void afterAll() {
-        surrealdb.stop();
+        stopContainer();
+    }
+
+    protected static synchronized void startContainer() {
+        if (!surrealdbContainer.isRunning()) {
+            surrealdbContainer.start();
+        }
+        HOST = surrealdbContainer.getHost();
+        PORT = surrealdbContainer.getMappedPort(RPC_PORT);
+    }
+
+    protected static synchronized void stopContainer() {
+        if (surrealdbContainer != null && surrealdbContainer.isRunning()) {
+            surrealdbContainer.stop();
+        }
     }
 
     @Override
@@ -58,8 +94,8 @@ public abstract class SurrealDbEmbeddingStoreBaseTest extends EmbeddingStoreIT {
         }
 
         embeddingStore = SurrealDbEmbeddingStore.builder()
-                .host(surrealdb.getHost())
-                .port(surrealdb.getMappedPort(8000))
+                .host(HOST)
+                .port(PORT)
                 .useTls(false)
                 .namespace(NAMESPACE)
                 .database(DATABASE)
