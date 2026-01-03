@@ -166,7 +166,7 @@ class SurrealDbEmbeddingStoreTest extends SurrealDbEmbeddingStoreBaseTest {
     void should_handle_large_batch_inserts() {
         int count = 2000;
         List<TextSegment> segments = IntStream.range(0, count)
-                .mapToObj(i -> TextSegment.from("text-" + i, Metadata.from("i", i)))
+                .mapToObj(i -> TextSegment.from("text-" + i, Metadata.from("i", String.valueOf(i))))
                 .toList();
         List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
         embeddingStore.addAll(embeddings, segments);
