@@ -71,4 +71,41 @@ class SurrealDbFilterMapperTest {
         assertThat(clause).matches("\\(metadata.a = \\$filter_param_\\d+\\) AND \\(metadata.b = \\$filter_param_\\d+\\)");
         assertThat(params).hasSize(2);
     }
+
+    @Test
+    void should_map_or() {
+        Or filter = new Or(new IsEqualTo("a", 1), new IsNotEqualTo("b", 2));
+        String clause = mapper.map(filter);
+        assertThat(clause).matches("\\(metadata.a = \\$filter_param_\\d+\\) OR \\(metadata.b != \\$filter_param_\\d+\\)");
+        assertThat(params).hasSize(2);
+    }
+
+    @Test
+    void should_map_not() {
+        Not filter = new Not(new IsGreaterThan("score", 10));
+        String clause = mapper.map(filter);
+        assertThat(clause).matches("!\\(metadata.score > \\$filter_param_\\d+\\)");
+        assertThat(params).containsValue(10);
+    }
+
+    @Test
+    void should_map_not_in() {
+        Collection<String> values = Set.of("x", "y");
+        IsNotIn filter = new IsNotIn("tag", values);
+        String clause = mapper.map(filter);
+        assertThat(clause).startsWith("metadata.tag NOTINSIDE $");
+        String paramName = clause.substring(clause.indexOf("$") + 1);
+        assertThat(params.get(paramName)).isEqualTo(values);
+    }
+
+    @Test
+    void should_map_greater_than_or_equal_and_less_than_or_equal() {
+        IsGreaterThanOrEqualTo gte = new IsGreaterThanOrEqualTo("age", 21);
+        IsLessThanOrEqualTo lte = new IsLessThanOrEqualTo("age", 65);
+        String gteClause = mapper.map(gte);
+        String lteClause = mapper.map(lte);
+        assertThat(gteClause).contains(">=");
+        assertThat(lteClause).contains("<=");
+        assertThat(params.values()).contains(21, 65);
+    }
 }

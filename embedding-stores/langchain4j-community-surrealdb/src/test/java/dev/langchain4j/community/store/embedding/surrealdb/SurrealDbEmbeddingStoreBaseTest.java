@@ -2,7 +2,6 @@ package dev.langchain4j.community.store.embedding.surrealdb;
 
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.embedding.onnx.allminilml6v2q.AllMiniLmL6V2QuantizedEmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.EmbeddingStoreIT;
 import org.junit.jupiter.api.AfterAll;
@@ -23,6 +22,7 @@ public abstract class SurrealDbEmbeddingStoreBaseTest extends EmbeddingStoreIT {
     protected static final String DATABASE = "test_db";
     protected static final String COLLECTION = "test_vectors";
     protected static final int RPC_PORT = 8000;
+    protected static final int DIMENSION = 8;
     protected static final String SURREALDB_IMAGE = System.getProperty("surrealdb.image", "surrealdb/surrealdb:latest");
 
     protected static String HOST;
@@ -51,7 +51,7 @@ public abstract class SurrealDbEmbeddingStoreBaseTest extends EmbeddingStoreIT {
 
     protected SurrealDbEmbeddingStore embeddingStore;
 
-    protected final EmbeddingModel embeddingModel = new AllMiniLmL6V2QuantizedEmbeddingModel();
+    protected final EmbeddingModel embeddingModel = new TestEmbeddingModel(DIMENSION);
 
     @BeforeAll
     static void beforeAll() {
@@ -102,7 +102,7 @@ public abstract class SurrealDbEmbeddingStoreBaseTest extends EmbeddingStoreIT {
                 .username(USERNAME)
                 .password(PASSWORD)
                 .collection(COLLECTION)
-                .dimension(384)
+                .dimension(DIMENSION)
                 .build();
     }
 }

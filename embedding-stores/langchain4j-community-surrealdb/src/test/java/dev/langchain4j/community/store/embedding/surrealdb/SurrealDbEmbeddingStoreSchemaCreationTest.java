@@ -26,7 +26,7 @@ class SurrealDbEmbeddingStoreSchemaCreationTest extends SurrealDbEmbeddingStoreB
                 .username(USERNAME)
                 .password(PASSWORD)
                 .collection(collection)
-                .dimension(128)
+                .dimension(DIMENSION)
                 .build();
 
         List<String> indexes = listIndexes(collection);
@@ -48,16 +48,38 @@ class SurrealDbEmbeddingStoreSchemaCreationTest extends SurrealDbEmbeddingStoreB
                         .port(PORT)
                         .useTls(false)
                         .namespace(NAMESPACE)
-                        .database(DATABASE)
-                        .username(USERNAME)
-                        .password(PASSWORD)
-                        .collection(collection)
-                        .dimension(384)
-                        .build())
+                .database(DATABASE)
+                .username(USERNAME)
+                .password(PASSWORD)
+                .collection(collection)
+                .dimension(DIMENSION)
+                .build())
                 .doesNotThrowAnyException();
 
         List<String> indexes = listIndexes(collection);
         assertThat(indexes).contains(indexName);
+    }
+
+    @Test
+    void should_fail_when_existing_index_has_different_dimension() {
+        String collection = "schema_test_conflict";
+        String indexName = "idx_embedding_" + collection;
+        executeAdminQuery(String.format(
+                "DEFINE TABLE %s SCHEMALESS; DEFINE INDEX %s ON TABLE %s FIELDS embedding HNSW DIMENSION 16 DIST COSINE TYPE F32;",
+                collection, indexName, collection));
+
+        assertThatCode(() -> SurrealDbEmbeddingStore.builder()
+                        .host(HOST)
+                        .port(PORT)
+                        .useTls(false)
+                        .namespace(NAMESPACE)
+                        .database(DATABASE)
+                        .username(USERNAME)
+                        .password(PASSWORD)
+                        .collection(collection)
+                        .dimension(DIMENSION)
+                        .build())
+                .isInstanceOf(RuntimeException.class);
     }
 
     private void executeAdminQuery(String query) {

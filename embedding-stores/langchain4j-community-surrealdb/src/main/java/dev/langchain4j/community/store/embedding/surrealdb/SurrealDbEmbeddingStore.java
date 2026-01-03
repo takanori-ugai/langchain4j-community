@@ -375,9 +375,59 @@ public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment> {
                 if (message == null || !message.contains("already exists")) {
                     throw new RuntimeException("Failed to create index", e);
                 }
+                validateExistingIndex(driver, collection, dimension);
             }
 
             return new SurrealDbEmbeddingStore(driver, namespace, database, collection, dimension);
+        }
+
+        private static void validateExistingIndex(Surreal driver, String collection, int expectedDimension) {
+            try {
+                Response response = executeQuery(driver, "INFO FOR TABLE " + collection + ";", null);
+                Value value = response.take(0);
+                if (value == null || !value.isObject()) {
+                    return;
+                }
+                Value indexes = value.getObject().get("indexes");
+                if (indexes == null) {
+                    return;
+                }
+                String definition = null;
+                String indexName = "idx_embedding_" + collection;
+                if (indexes.isObject()) {
+                    Value idxVal = indexes.getObject().get(indexName);
+                    if (idxVal != null && idxVal.isString()) {
+                        definition = idxVal.getString();
+                    }
+                } else if (indexes.isArray()) {
+                    for (Value idx : indexes.getArray()) {
+                        if (idx.isObject()) {
+                            Value name = idx.getObject().get("name");
+                            Value def = idx.getObject().get("index");
+                            if (name != null && name.isString() && indexName.equals(name.getString())
+                                    && def != null && def.isString()) {
+                                definition = def.getString();
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (definition == null) {
+                    return;
+                }
+                java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("DIMENSION\\s+(\\d+)").matcher(definition);
+                if (matcher.find()) {
+                    int actualDimension = Integer.parseInt(matcher.group(1));
+                    if (actualDimension != expectedDimension) {
+                        throw new RuntimeException("Existing index " + indexName
+                                + " has dimension " + actualDimension + " but expected " + expectedDimension);
+                    }
+                }
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to validate existing index", e);
+            }
         }
     }
 

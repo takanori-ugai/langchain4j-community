@@ -2,7 +2,6 @@ package dev.langchain4j.community.store.embedding.surrealdb;
 
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.embedding.onnx.allminilml6v2q.AllMiniLmL6V2QuantizedEmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.EmbeddingStoreWithRemovalIT;
 import org.junit.jupiter.api.AfterAll;
@@ -11,13 +10,13 @@ import org.junit.jupiter.api.BeforeEach;
 
 class SurrealDbEmbeddingStoreRemovalIT extends EmbeddingStoreWithRemovalIT {
 
-    static final String USERNAME = "root";
-    static final String PASSWORD = "root";
-    static final String NAMESPACE = "test_ns";
-    static final String DATABASE = "test_db";
-    static final String COLLECTION = "test_vectors";
+    static final String USERNAME = SurrealDbEmbeddingStoreBaseTest.USERNAME;
+    static final String PASSWORD = SurrealDbEmbeddingStoreBaseTest.PASSWORD;
+    static final String NAMESPACE = SurrealDbEmbeddingStoreBaseTest.NAMESPACE;
+    static final String DATABASE = SurrealDbEmbeddingStoreBaseTest.DATABASE;
+    static final String COLLECTION = SurrealDbEmbeddingStoreBaseTest.COLLECTION;
 
-    EmbeddingModel embeddingModel = new AllMiniLmL6V2QuantizedEmbeddingModel();
+    EmbeddingModel embeddingModel = new TestEmbeddingModel(SurrealDbEmbeddingStoreBaseTest.DIMENSION);
 
     SurrealDbEmbeddingStore embeddingStore;
     private static String host;
@@ -46,7 +45,7 @@ class SurrealDbEmbeddingStoreRemovalIT extends EmbeddingStoreWithRemovalIT {
                 .username(USERNAME)
                 .password(PASSWORD)
                 .collection(COLLECTION)
-                .dimension(384)
+                .dimension(SurrealDbEmbeddingStoreBaseTest.DIMENSION)
                 .build();
         embeddingStore.removeAll();
     }
