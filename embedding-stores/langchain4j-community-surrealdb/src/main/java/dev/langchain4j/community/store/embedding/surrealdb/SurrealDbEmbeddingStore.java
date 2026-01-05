@@ -26,7 +26,7 @@ import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
 /**
  * Represents a <a href="https://surrealdb.com/">SurrealDB</a> index as an embedding store.
  */
-public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment> {
+public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment>, java.io.Closeable {
 
     private final Surreal driver;
     private final String namespace;
@@ -40,6 +40,13 @@ public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment> {
         this.database = ensureNotNull(database, "database");
         this.collection = ensureNotNull(collection, "collection");
         this.dimension = dimension;
+    }
+
+    @Override
+    public void close() {
+        if (driver != null) {
+            driver.close();
+        }
     }
 
     public static Builder builder() {
