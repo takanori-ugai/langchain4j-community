@@ -16,11 +16,24 @@ import org.junit.jupiter.api.Test;
 
 public class SurrealDbEmbeddingStoreIT extends SurrealDbEmbeddingStoreBaseTest {
 
+    /**
+     * Provide the embedding store instance used by the test class.
+     *
+     * @return the concrete embedding store instance used for testing
+     */
     @Override
     protected EmbeddingStore<TextSegment> embeddingStore() {
         return embeddingStore;
     }
 
+    /**
+     * Integration test that verifies filtered and unfiltered embedding searches return the expected matches.
+     *
+     * <p>Populates the store with three text segments labeled by category, adds their embeddings, then:
+     * - Executes a filtered nearest-neighbor search for "hello" constrained to category = "news" and expects a single
+     *   match with id "doc1" and metadata category "news".
+     * - Executes an unfiltered search for "Elizabeth" and expects a match with id "doc2".</p>
+     */
     @Test
     void should_emulate_issue_1306_case() {
         embeddingStore.removeAll();
