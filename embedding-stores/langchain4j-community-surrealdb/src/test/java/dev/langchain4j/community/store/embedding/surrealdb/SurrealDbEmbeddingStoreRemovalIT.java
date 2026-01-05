@@ -22,6 +22,12 @@ class SurrealDbEmbeddingStoreRemovalIT extends EmbeddingStoreWithRemovalIT {
     private static String host;
     private static int port;
 
+    /**
+     * Starts the SurrealDB test container and initializes the static host and port used by tests.
+     *
+     * This method runs once before all test cases to ensure the container is running and its
+     * connection details are available via the class-level host and port fields.
+     */
     @BeforeAll
     static void beforeAllTests() {
         SurrealDbEmbeddingStoreBaseTest.startContainer();
@@ -29,11 +35,20 @@ class SurrealDbEmbeddingStoreRemovalIT extends EmbeddingStoreWithRemovalIT {
         port = SurrealDbEmbeddingStoreBaseTest.PORT;
     }
 
+    /**
+     * Stops the SurrealDB test container started for the integration tests.
+     */
     @AfterAll
     static void afterAllTests() {
         SurrealDbEmbeddingStoreBaseTest.stopContainer();
     }
 
+    /**
+     * Prepares a SurrealDbEmbeddingStore configured for tests and clears all embeddings before each test.
+     *
+     * <p>This initializes the test store using the test connection and configuration constants, then removes
+     * any existing embeddings so each test starts with an empty store.
+     */
     @BeforeEach
     void beforeEach() {
         embeddingStore = SurrealDbEmbeddingStore.builder()
@@ -50,11 +65,21 @@ class SurrealDbEmbeddingStoreRemovalIT extends EmbeddingStoreWithRemovalIT {
         embeddingStore.removeAll();
     }
 
+    /**
+     * Provides the configured embedding store instance used by the test.
+     *
+     * @return the configured {@code EmbeddingStore<TextSegment>} used by the tests
+     */
     @Override
     protected EmbeddingStore<TextSegment> embeddingStore() {
         return embeddingStore;
     }
 
+    /**
+     * Provides the embedding model used by this test instance.
+     *
+     * @return the EmbeddingModel used to generate embeddings for tests
+     */
     @Override
     protected EmbeddingModel embeddingModel() {
         return embeddingModel;
