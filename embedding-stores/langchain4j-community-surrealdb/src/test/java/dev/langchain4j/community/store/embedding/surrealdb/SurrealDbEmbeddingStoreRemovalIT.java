@@ -2,84 +2,67 @@ package dev.langchain4j.community.store.embedding.surrealdb;
 
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.embedding.onnx.allminilml6v2q.AllMiniLmL6V2QuantizedEmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.EmbeddingStoreWithRemovalIT;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
+@Testcontainers
 class SurrealDbEmbeddingStoreRemovalIT extends EmbeddingStoreWithRemovalIT {
 
-    static final String USERNAME = SurrealDbEmbeddingStoreBaseTest.USERNAME;
-    static final String PASSWORD = SurrealDbEmbeddingStoreBaseTest.PASSWORD;
-    static final String NAMESPACE = SurrealDbEmbeddingStoreBaseTest.NAMESPACE;
-    static final String DATABASE = SurrealDbEmbeddingStoreBaseTest.DATABASE;
-    static final String COLLECTION = SurrealDbEmbeddingStoreBaseTest.COLLECTION;
+    static final String USERNAME = "root";
+    static final String PASSWORD = "root";
+    static final String NAMESPACE = "test_ns";
+    static final String DATABASE = "test_db";
+    static final String COLLECTION = "test_vectors";
 
-    EmbeddingModel embeddingModel = new TestEmbeddingModel(SurrealDbEmbeddingStoreBaseTest.DIMENSION);
+    @Container
+    static GenericContainer<?> surrealdb = new GenericContainer<>("surrealdb/surrealdb:latest")
+            .withExposedPorts(8000)
+            .withCommand("start --log trace --user " + USERNAME + " --pass " + PASSWORD)
+            .waitingFor(Wait.forLogMessage(".*Started web server on.*", 1));
+
+    EmbeddingModel embeddingModel = new AllMiniLmL6V2QuantizedEmbeddingModel();
 
     SurrealDbEmbeddingStore embeddingStore;
-    private static String host;
-    private static int port;
 
-    /**
-     * Starts the SurrealDB test container and initializes the static host and port used by tests.
-     *
-     * This method runs once before all test cases to ensure the container is running and its
-     * connection details are available via the class-level host and port fields.
-     */
     @BeforeAll
-    static void beforeAllTests() {
-        SurrealDbEmbeddingStoreBaseTest.startContainer();
-        host = SurrealDbEmbeddingStoreBaseTest.HOST;
-        port = SurrealDbEmbeddingStoreBaseTest.PORT;
+    static void beforeAll() {
+        surrealdb.start();
     }
 
-    /**
-     * Stops the SurrealDB test container started for the integration tests.
-     */
     @AfterAll
-    static void afterAllTests() {
-        SurrealDbEmbeddingStoreBaseTest.stopContainer();
+    static void afterAll() {
+        surrealdb.stop();
     }
 
-    /**
-     * Prepares a SurrealDbEmbeddingStore configured for tests and clears all embeddings before each test.
-     *
-     * <p>This initializes the test store using the test connection and configuration constants, then removes
-     * any existing embeddings so each test starts with an empty store.
-     */
     @BeforeEach
     void beforeEach() {
         embeddingStore = SurrealDbEmbeddingStore.builder()
-                .host(host)
-                .port(port)
+                .host(surrealdb.getHost())
+                .port(surrealdb.getMappedPort(8000))
                 .useTls(false)
                 .namespace(NAMESPACE)
                 .database(DATABASE)
                 .username(USERNAME)
                 .password(PASSWORD)
                 .collection(COLLECTION)
-                .dimension(SurrealDbEmbeddingStoreBaseTest.DIMENSION)
+                .dimension(384)
                 .build();
         embeddingStore.removeAll();
     }
 
-    /**
-     * Provides the configured embedding store instance used by the test.
-     *
-     * @return the configured {@code EmbeddingStore<TextSegment>} used by the tests
-     */
     @Override
     protected EmbeddingStore<TextSegment> embeddingStore() {
         return embeddingStore;
     }
 
-    /**
-     * Provides the embedding model used by this test instance.
-     *
-     * @return the EmbeddingModel used to generate embeddings for tests
-     */
     @Override
     protected EmbeddingModel embeddingModel() {
         return embeddingModel;
