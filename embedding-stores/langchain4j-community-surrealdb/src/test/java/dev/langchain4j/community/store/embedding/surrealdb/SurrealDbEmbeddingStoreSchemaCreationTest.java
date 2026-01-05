@@ -40,8 +40,8 @@ class SurrealDbEmbeddingStoreSchemaCreationTest extends SurrealDbEmbeddingStoreB
         String indexName = "idx_embedding_" + collection;
 
         executeAdminQuery(String.format(
-                "DEFINE INDEX %s ON TABLE %s FIELDS embedding HNSW DIMENSION 384 DIST COSINE TYPE F32;",
-                indexName, collection));
+                "DEFINE INDEX %s ON TABLE %s FIELDS embedding HNSW DIMENSION %d DIST COSINE TYPE F32;",
+                indexName, collection, DIMENSION));
 
         assertThatCode(() -> SurrealDbEmbeddingStore.builder()
                         .host(HOST)
