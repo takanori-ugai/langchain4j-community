@@ -12,6 +12,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * Maps {@link Filter} to SurrealQL `WHERE` clause.
+ */
 class SurrealDbFilterMapper {
 
     private static final Pattern VALID_KEY_PATTERN = Pattern.compile("^[a-zA-Z0-9_.]+$");
@@ -19,10 +22,21 @@ class SurrealDbFilterMapper {
     private final Map<String, Object> parameters;
     private final AtomicInteger paramCounter = new AtomicInteger(0);
 
+    /**
+     * Creates a new instance of {@link SurrealDbFilterMapper}.
+     *
+     * @param parameters The map to store parameters in.
+     */
     SurrealDbFilterMapper(Map<String, Object> parameters) {
         this.parameters = parameters;
     }
 
+    /**
+     * Maps the given filter to a SurrealQL `WHERE` clause.
+     *
+     * @param filter The filter to map.
+     * @return The SurrealQL `WHERE` clause.
+     */
     String map(Filter filter) {
         if (filter instanceof IsEqualTo) {
             return map((IsEqualTo) filter);

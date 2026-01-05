@@ -30,6 +30,9 @@ import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
 
 /**
  * Represents a <a href="https://surrealdb.com/">SurrealDB</a> index as an embedding store.
+ * <p>
+ * This implementation uses the official SurrealDB Java SDK to interact with the database.
+ * It supports vector search using the HNSW index and cosine similarity.
  */
 public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment> {
 
@@ -41,6 +44,15 @@ public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment> {
     private final String collection;
     private final int dimension;
 
+    /**
+     * Creates a new instance of {@link SurrealDbEmbeddingStore}.
+     *
+     * @param driver     The SurrealDB driver instance.
+     * @param namespace  The namespace to use.
+     * @param database   The database to use.
+     * @param collection The collection to store embeddings in.
+     * @param dimension  The dimension of the embeddings.
+     */
     public SurrealDbEmbeddingStore(Surreal driver, String namespace, String database, String collection, int dimension) {
         this.driver = ensureNotNull(driver, "driver");
         this.namespace = ensureNotNull(namespace, "namespace");
@@ -49,6 +61,11 @@ public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment> {
         this.dimension = dimension;
     }
 
+    /**
+     * Creates a new builder for {@link SurrealDbEmbeddingStore}.
+     *
+     * @return A new builder.
+     */
     public static Builder builder() {
         return new Builder();
     }
@@ -250,6 +267,9 @@ public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment> {
         }
     }
 
+    /**
+     * Builder for {@link SurrealDbEmbeddingStore}.
+     */
     public static class Builder {
         private String host;
         private int port;
@@ -261,51 +281,110 @@ public class SurrealDbEmbeddingStore implements EmbeddingStore<TextSegment> {
         private String collection = "vectors";
         private int dimension;
 
+        /**
+         * Sets the host of the SurrealDB instance.
+         *
+         * @param host The host.
+         * @return This builder.
+         */
         public Builder host(String host) {
             this.host = host;
             return this;
         }
 
+        /**
+         * Sets the port of the SurrealDB instance.
+         *
+         * @param port The port.
+         * @return This builder.
+         */
         public Builder port(int port) {
             this.port = port;
             return this;
         }
 
+        /**
+         * Sets whether to use TLS for the connection.
+         *
+         * @param useTls True to use TLS, false otherwise.
+         * @return This builder.
+         */
         public Builder useTls(boolean useTls) {
             this.useTls = useTls;
             return this;
         }
 
+        /**
+         * Sets the namespace to use.
+         *
+         * @param namespace The namespace.
+         * @return This builder.
+         */
         public Builder namespace(String namespace) {
             this.namespace = namespace;
             return this;
         }
 
+        /**
+         * Sets the database to use.
+         *
+         * @param database The database.
+         * @return This builder.
+         */
         public Builder database(String database) {
             this.database = database;
             return this;
         }
 
+        /**
+         * Sets the username for authentication.
+         *
+         * @param username The username.
+         * @return This builder.
+         */
         public Builder username(String username) {
             this.username = username;
             return this;
         }
 
+        /**
+         * Sets the password for authentication.
+         *
+         * @param password The password.
+         * @return This builder.
+         */
         public Builder password(String password) {
             this.password = password;
             return this;
         }
 
+        /**
+         * Sets the collection to store embeddings in.
+         *
+         * @param collection The collection name. Default is "vectors".
+         * @return This builder.
+         */
         public Builder collection(String collection) {
             this.collection = collection;
             return this;
         }
 
+        /**
+         * Sets the dimension of the embeddings.
+         *
+         * @param dimension The dimension.
+         * @return This builder.
+         */
         public Builder dimension(int dimension) {
             this.dimension = dimension;
             return this;
         }
 
+        /**
+         * Builds the {@link SurrealDbEmbeddingStore}.
+         *
+         * @return The built {@link SurrealDbEmbeddingStore}.
+         */
         public SurrealDbEmbeddingStore build() {
             ensureNotNull(host, "host");
             ensureNotNull(namespace, "namespace");
